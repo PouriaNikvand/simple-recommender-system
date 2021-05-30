@@ -1,0 +1,15 @@
+dataclasses==0.8
+google-pasta==0.2.0
+jupyter==1.0.0
+Keras-Preprocessing==1.1.0
+matplotlib==3.2.0
+pandas==1.1.5
+scikit-learn==0.24.2
+scikit-surprise==1.1.1
+seaborn==0.11.1
+sklearn==0.0
+tensorboard==2.0.0
+tensorflow==2.0.0
+tensorflow-estimator==2.0.0
+termcolor==1.1.0
+wordcloud==1.8.1
