@@ -6,9 +6,11 @@ from sklearn.cluster import KMeans
 
 from evaluator import Evaluator
 from dataset_handler import DatasetHandler
+from pathlib import PurePosixPath
+import os
 
-dataset_path = "../../../dataset/ml-takeaway/"
-
+dataset_path = str(
+    PurePosixPath(os.path.dirname(os.path.abspath(__file__))).parent.parent.parent) + "/dataset/ml-takeaway/"
 
 dataset_handler = DatasetHandler(dataset_path)
 
