@@ -11,13 +11,12 @@ from sklearn.model_selection import GridSearchCV
 
 import snips as snp  # my snippets
 
-"""*Disclaimer: This little exercise with this movie ratings toy data set is very common. You can see two examples [here](http://blog.ethanrosenthal.com/2015/11/02/intro-to-collaborative-filtering/) and [here](http://online.cambridgecoding.com/notebooks/mhaller/implementing-your-own-recommender-systems-in-python-using-stochastic-gradient-descent-4) of people doing _exactly_ what I'm about to do.*"""
-
 header = ['user_id', 'item_id', 'rating', 'timestamp']
 df = pd.read_csv('u.data', sep='\t', names=header)
 df.head()
 
-"""We expect most users haven't rated most movies, so let's get a sense of exactly how sparse the data is. The number of missing ratings should be the difference between the number of rows here, and the total number of possible ratings $n_{users} \times n_{movies}$."""
+"""We expect most users haven't rated most movies, so let's get a sense of exactly how sparse the data is.
+The number of missing ratings should be the difference between the number of rows here, and the total number of possible ratings $n_{users} \times n_{movies}$."""
 
 n_u = len(df["user_id"].unique())
 n_m = len(df["item_id"].unique())

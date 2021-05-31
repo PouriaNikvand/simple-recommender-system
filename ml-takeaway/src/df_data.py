@@ -4,6 +4,7 @@ from utils import Utils
 from preprocess import Preprocess
 from constants import Constants
 from pandas import DataFrame
+import numpy as np
 
 """ Author: Pouria Nikvand """
 
@@ -11,12 +12,47 @@ from pandas import DataFrame
 class DfData:
 
     def __init__(self):
-        rating_path = str(Constants.constants_path.parent) + Constants.rating_path
-        wishlist_path = str(Constants.constants_path.parent) + Constants.wishlist_path
+        rating_path = str(Constants.constants_path.parent.parent) + Constants.rating_path
+        wishlist_path = str(Constants.constants_path.parent.parent) + Constants.wishlist_path
         self.rating_df = Utils.load_data(rating_path)
         self.wishlist_df = Utils.load_data(wishlist_path)
-        self.preprocessed = Preprocess(rating_df=self.rating_df, wishlist_df=self.wishlist_df)
-        self.top_mean_rated_books, self.top_count_rated_books, self.top_grouped_rate = self.rate_analysis(self.rating_df)
+
+        print(self.rating_df[self.rating_df['BookId'] == 5821])
+        self.book_df_tmp = self.rating_df[['BookId', 'Rate']]
+        self.book_df_tmp['Sum'] = self.book_df_tmp.groupby(['BookId'])['Rate'].transform('sum')
+        self.book_df_tmp['RaCount'] = self.book_df_tmp.groupby(['BookId'])['Rate'].transform('count')
+
+        self.book_df_tmp['NORC'] = self.book_df_tmp.groupby(['BookId', 'Rate'])['Rate'].transform('count')
+        self.book_df_tmp = self.book_df_tmp.drop_duplicates()
+        self.book_df_tmp['Rate1C'] = self.book_df_tmp[self.book_df_tmp['Rate'] == 1]['NORC']
+        self.book_df_tmp['Rate2C'] = self.book_df_tmp[self.book_df_tmp['Rate'] == 2]['NORC']
+        self.book_df_tmp['Rate3C'] = self.book_df_tmp[self.book_df_tmp['Rate'] == 3]['NORC']
+        self.book_df_tmp['Rate4C'] = self.book_df_tmp[self.book_df_tmp['Rate'] == 4]['NORC']
+        self.book_df_tmp['Rate5C'] = self.book_df_tmp[self.book_df_tmp['Rate'] == 5]['NORC']
+        self.book_df_tmp = self.book_df_tmp.replace(np.nan, 0)
+        self.book_df = self.book_df_tmp[['BookId', 'RaCount', 'Sum']].drop_duplicates()
+        self.book_df_tmp = self.book_df_tmp.drop(columns=['Rate', 'NORC','Sum','RaCount'])
+
+
+        self.book_df_tmp['Rate1C'] = self.book_df_tmp[['BookId', 'Rate']].groupby('BookId')['Rate'] == 1
+        # self.book_df = DataFrame(self.rating_df['BookId'].unique(),columns=['BookId'])
+        self.book_df = self.book_df.head(3)
+        self.book_df = self.book_df_tmp
+        # self.book_df = self.rating_df.pivot(index='Rate', columns='BookId'
+
+        self.book_df['ReadCount'] = self.rating_df['BookId'].value_counts()
+        self.book_df['ReadCount'] = self.rating_df['BookId'].value_counts()
+
+        # TODO let see the distribution
+        self.mean_rated_count = self.rating_df['AccountId'].value_counts().mean()
+        self.max_rated_count = self.rating_df['AccountId'].value_counts().max()
+        self.min_rated_count = self.rating_df['AccountId'].value_counts().min()
+        self.mean_wishlist_count = self.wishlist_df['AccountId'].value_counts().mean()
+        self.max_wishlist_count = self.wishlist_df['AccountId'].value_counts().max()
+        self.min_wishlist_count = self.wishlist_df['AccountId'].value_counts().min()
+
+        self.top_mean_rated_books, self.top_count_rated_books, self.top_grouped_rate = self.rate_analysis(
+            self.rating_df)
 
         # wishlist_analysis(the_df_data.wishlist_df)
 
