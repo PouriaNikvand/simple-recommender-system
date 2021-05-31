@@ -1,2 +1,3 @@
-*.*
-!.gitignore
+*.pkl
+*.zip
+goodreads-book-datasets-10m
