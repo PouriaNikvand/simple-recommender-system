@@ -199,5 +199,7 @@ Thumbs.db
 ./.idea
 .idea
 **/.idea
+ml-takeaway/sample
+goodreads_recommender/samples
 
 # End of https://www.toptal.com/developers/gitignore/api/python,macos,linux
