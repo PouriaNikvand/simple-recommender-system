@@ -33,7 +33,6 @@ class DfData:
         self.book_df = self.book_df_tmp[['BookId', 'RaCount', 'Sum']].drop_duplicates()
         self.book_df_tmp = self.book_df_tmp.drop(columns=['Rate', 'NORC','Sum','RaCount'])
 
-
         self.book_df_tmp['Rate1C'] = self.book_df_tmp[['BookId', 'Rate']].groupby('BookId')['Rate'] == 1
         # self.book_df = DataFrame(self.rating_df['BookId'].unique(),columns=['BookId'])
         self.book_df = self.book_df.head(3)
@@ -42,6 +41,7 @@ class DfData:
 
         self.book_df['ReadCount'] = self.rating_df['BookId'].value_counts()
         self.book_df['ReadCount'] = self.rating_df['BookId'].value_counts()
+
 
         # TODO let see the distribution
         self.mean_rated_count = self.rating_df['AccountId'].value_counts().mean()
