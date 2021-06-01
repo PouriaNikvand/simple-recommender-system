@@ -2,12 +2,8 @@ from typing import Tuple
 
 import pandas as pd
 from pandas import DataFrame
-from sklearn.metrics.pairwise import cosine_similarity
-from scipy import sparse
-from sklearn.neighbors import NearestNeighbors
-from termcolor import colored
-from df_data import DfData
-from preprocess import Preprocess
+from managers.df_data import DfData
+from managers.preprocess import Preprocess
 
 """ Author: Pouria Nikvand """
 

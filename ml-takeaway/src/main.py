@@ -1,17 +1,10 @@
 from termcolor import colored
 
-from constants import Constants
-from utils import Utils
-import numpy as np
-from sklearn.metrics import pairwise_distances
-from scipy.sparse.linalg import svds
-import pandas as pd
-from preprocess import Preprocess
-from recommender import Recommender
-from df_data import DfData
-from configs import Configs
-from strategies import Strategies
-from deep_model import DeepModel
+from managers.preprocess import Preprocess
+from managers.df_data import DfData
+from configs.configs import Configs
+from managers.strategies import Strategies
+from managers.deep_model import DeepModel
 
 """ Author: Pouria Nikvand """
 

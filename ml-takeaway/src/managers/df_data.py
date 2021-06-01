@@ -1,11 +1,11 @@
 from typing import Tuple
-
-from utils import Utils
-from preprocess import Preprocess
-from constants import Constants
-import pandas as pd
 from pandas import DataFrame
 import numpy as np
+
+from utils.utils import Utils
+from constants.constants import Constants
+import pandas as pd
+
 
 """ Author: Pouria Nikvand """
 
@@ -13,8 +13,8 @@ import numpy as np
 class DfData:
 
     def __init__(self):
-        rating_path = str(Constants.constants_path.parent.parent) + Constants.rating_path
-        wishlist_path = str(Constants.constants_path.parent.parent) + Constants.wishlist_path
+        rating_path = str(Constants.constants_path.parent.parent.parent) + Constants.rating_path
+        wishlist_path = str(Constants.constants_path.parent.parent.parent) + Constants.wishlist_path
         self.rating_df = Utils.load_data(rating_path)
         self.wishlist_df = Utils.load_data(wishlist_path)
 
