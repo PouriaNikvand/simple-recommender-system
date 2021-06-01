@@ -43,6 +43,7 @@ class Preprocess:
         mean = np.mean(rmm, axis=1)
         rmm = rmm - mean.reshape(-1, 1)
 
+        ## k is a hyperparam here
         U, sigma, Vt = svds(rmm, k=50)
         sigma = np.diag(sigma)
 
