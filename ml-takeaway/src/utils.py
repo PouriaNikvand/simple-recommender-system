@@ -15,3 +15,7 @@ class Utils:
     def load_data(path):
         df = pd.read_csv(path)
         return df
+
+    @staticmethod
+    def load_model():
+        pass

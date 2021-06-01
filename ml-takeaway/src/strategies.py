@@ -1,6 +1,7 @@
 from recommender import Recommender
 from preprocess import Preprocess
 from df_data import DfData
+from deep_model import DeepModel
 
 """ Author: Pouria Nikvand """
 
@@ -156,6 +157,28 @@ class Strategies(Recommender):
                                                      similar_users))
         return results
 
-    def my_recommender_4(self) -> list:
-        # TODO this part is merged with deep learning
-        pass
+    def my_recommender_4(self, my_deep_model) -> list:
+        # using deep model trained on user rated data for prediction
+        results = list()
+
+        if self.strategy_score < 5:
+            results.append(self.my_df_data.top_count_rated_books)
+            results.append(self.my_df_data.top_mean_rated_books)
+            results.append(self.my_df_data.top_grouped_rate)
+        elif self.strategy_score < 10:
+            results.append(self.my_df_data.top_count_rated_books)
+            results.append(self.my_df_data.top_mean_rated_books)
+            results.append(self.my_df_data.top_grouped_rate)
+
+        elif self.strategy_score < 15:
+            results.append(my_deep_model.test(self.user_id, self.num_recommendations))
+            results.append(self.my_df_data.top_count_rated_books)
+            results.append(self.my_df_data.top_mean_rated_books)
+            results.append(self.my_df_data.top_grouped_rate)
+
+        elif self.strategy_score < 20:
+            results.append(my_deep_model.test(self.user_id, self.num_recommendations))
+        elif self.strategy_score < 25:
+            results.append(my_deep_model.test(self.user_id, self.num_recommendations))
+
+        return results

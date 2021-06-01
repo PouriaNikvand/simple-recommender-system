@@ -12,7 +12,7 @@ from preprocess import Preprocess
 """ Author: Pouria Nikvand """
 
 
-class Recommender:
+class Recommender():
 
     def __init__(self, user_id: int, my_df_data: DfData, my_preprocessed: Preprocess, num_recommendations: int):
         self.user_id = user_id
@@ -59,6 +59,7 @@ class Recommender:
 
     def recommend_using_svds(self, num_recommendations, preds, rating_df, account_id_indexes, user_id=None) -> Tuple[
         DataFrame, bool]:
+        result = []
         if user_id is None:
             user_id = self.user_id
             user_wishlist_books = self.user_wishlist_books
