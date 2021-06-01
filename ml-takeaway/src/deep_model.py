@@ -19,6 +19,7 @@ from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import dot
 from tensorflow.keras.models import Model
 from df_data import DfData
+from configs import Configs
 
 """ Author: Pouria Nikvand """
 
@@ -26,11 +27,40 @@ from df_data import DfData
 class DeepModel:
 
     def __init__(self, my_df_data: DfData):
-        books, users, user_rating = self.preprocess(my_df_data.book_df, my_df_data.rating_df)
-        self.BRS(books, users, user_rating)
+        self.my_df_data = my_df_data
+        self.deep_model_configs = Configs.deep_model_configs
+        self.train()
+
+    def train(self):
+        user_rating = self.preprocess(self.my_df_data.book_df, self.my_df_data.rating_df)
+        self.users = user_rating.AccountId.unique()
+        self.books = user_rating.BookId.unique()
+        self.nn_model = self.build_model(self.deep_model_configs['dropout'],
+                                         self.deep_model_configs['n_latent_factors'],
+                                         len(self.books),
+                                         len(self.users))
+
+        self.user_rating, x_train, x_test, y_train, y_test, exogenous_train, exogenous_valid = self.BRS_pretrain_data(
+            user_rating)
+
+        history = self.BRS_train(x_train, x_test, y_train, y_test, exogenous_train, exogenous_valid)
+
+        if not self.deep_model_configs['production_flag']:
+            self.plot_training_results(history)
+            self.result_analysis(x_test, y_test, exogenous_valid)
+
+    @staticmethod
+    def plot_training_results(history):
+        plt.plot(history.history['loss'], 'g')
+        plt.plot(history.history['val_loss'], 'b')
+        plt.title('model loss')
+        plt.ylabel('loss')
+        plt.xlabel('epoch')
+        plt.legend(['train', 'test'], loc='upper left')
+        plt.grid(True)
+        plt.show()
 
     def preprocess(self, book_rating, user_rating):
-
         book_rating['Rate1C'] = book_rating['Rate1C'].astype(int)
         book_rating['Rate2C'] = book_rating['Rate2C'].astype(int)
         book_rating['Rate3C'] = book_rating['Rate3C'].astype(int)
@@ -42,9 +72,7 @@ class DeepModel:
         book_rating['Pct_3Star'] = book_rating['Rate3C'] / book_rating['RaCount']
         book_rating['Pct_4Star'] = book_rating['Rate4C'] / book_rating['RaCount']
         book_rating['Pct_5Star'] = book_rating['Rate5C'] / book_rating['RaCount']
-        book_rating.head()
 
-        book_rating_df = book_rating[['BookId', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']]
         scaling_cols = ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum', 'RaCount']
 
         book_rating_scaled = self.mix_max_scaler(book_rating, scaling_cols)
@@ -52,91 +80,63 @@ class DeepModel:
             ['BookId', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum', 'RaCount']]
 
         ##Let's create Book_id that we can use
-        book_id_0 = book_rating_df[['BookId']]
-        book_id_1 = user_rating[['BookId']]
-        book_id = pd.concat([book_id_0, book_id_1], axis=0, ignore_index=True)
-        book_id.rename(columns={book_id.columns[0]: "BookId"}, inplace=True)
-        book_id.drop_duplicates(inplace=True)
-        # book_id['Book_Id'] = book_id.index.values
-        book_id.head()
+        book_id = book_rating_df[['BookId']]
 
-        user_rating.head(3)
         user_rating = pd.merge(user_rating, book_id, on='BookId', how='left')
         book_rating_df = pd.merge(book_rating_df, book_id, on='BookId', how='left')
-        user_rating.head()
-        user_rating['Rate'].unique()
 
-        book_rating_numeric = book_rating_df[
-            ['BookId', 'RaCount', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum']]
+        book_rating_numeric = book_rating_df[['BookId', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']]
         user_rating = pd.merge(user_rating, book_rating_numeric, on='BookId', how='left')
-        user_rating.head()
 
         user_rating.fillna(0, inplace=True)
 
-        users = user_rating.AccountId.unique()
-        books = user_rating.BookId.unique()
+        return user_rating
 
-        return books, users, user_rating
-
-    def BRS(self, books, users, user_rating):
-        userid2idx = {o: i for i, o in enumerate(users)}
-        bookid2idx = {o: i for i, o in enumerate(books)}
+    def BRS_pretrain_data(self, user_rating):
+        userid2idx = {o: i for i, o in enumerate(self.users)}
+        bookid2idx = {o: i for i, o in enumerate(self.books)}
+        user_rating['AccountId_original'] = user_rating['AccountId']
+        user_rating['BookId_original'] = user_rating['BookId']
         user_rating['AccountId'] = user_rating['AccountId'].apply(lambda x: userid2idx[x])
         user_rating['BookId'] = user_rating['BookId'].apply(lambda x: bookid2idx[x])
-        self.y = user_rating['RaCount']
-        self.X = user_rating.drop(['RaCount'], axis=1)
+        self.y = user_rating['Rate']
+        self.x = user_rating
 
-        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2,
-                                                                                random_state=42)
+        x_train, x_test, y_train, y_test = train_test_split(self.x, self.y, test_size=0.2,
+                                                            random_state=42)
 
-        # this part as for production not for experiments
-        # at this part we have done the experiments enough
-        self.X_train, self.y_train = self.X, self.y
+        if self.deep_model_configs['production_flag']:
+            x_train, y_train = self.x, self.y
 
-        print(self.X_train.shape, self.X_test.shape)
+        print(x_train.shape, x_test.shape)
 
-        self.exogenous_train = np.array(self.X_train[
-                                       ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum']])
-        self.exogenous_valid = np.array(self.X_test[
-                                       ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum']])
+        exogenous_train = np.array(x_train[
+                                       ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']])
+        exogenous_valid = np.array(x_test[
+                                       ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']])
+        return user_rating, x_train, x_test, y_train, y_test, exogenous_train, exogenous_valid
 
-        n_books = len(user_rating['BookId'].unique())
-        n_users = len(user_rating['AccountId'].unique())
+    def BRS_train(self, x_train, x_test, y_train, y_test, exogenous_train, exogenous_valid):
 
-        self.nn_model = self.build_model(0.4, 65, n_books, n_users)
-        self.nn_model.summary()
+        self.nn_model.compile(optimizer=Adam(lr=self.deep_model_configs['learning_rate']), loss='mse')
 
-        self.nn_model.compile(optimizer=Adam(lr=1e-4), loss='mse')
-
-        # we always want this batch size better than the others :-D
-        batch_size = 32
-        epochs = 10
-        History = self.nn_model.fit([self.X_train.AccountId, self.X_train.BookId, self.exogenous_train], self.y_train,
-                                    batch_size=batch_size,
-                                    epochs=epochs,
+        history = self.nn_model.fit([x_train.AccountId, x_train.BookId, exogenous_train], y_train,
+                                    batch_size=self.deep_model_configs['batch_size'],
+                                    epochs=self.deep_model_configs['epochs'],
                                     validation_data=(
-                                    [self.X_test.AccountId, self.X_test.BookId, self.exogenous_valid], self.y_test),
+                                        [x_test.AccountId, x_test.BookId, exogenous_valid], y_test),
                                     verbose=1)
 
-        plt.plot(History.history['loss'], 'g')
-        plt.plot(History.history['val_loss'], 'b')
-        plt.title('model loss')
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
-        plt.legend(['train', 'test'], loc='upper left')
-        plt.grid(True)
-        plt.show()
+        return history
 
-        # self.result_analysis()
-
-    def result_analysis(self):
-        preds = self.nn_model.predict([self.X_test.AccountId, self._test.BookId, self.exogenous_valid])
-        df_id = pd.DataFrame(np.array(self.X_test.AccountId))
-        df_Book_id = pd.DataFrame(np.array(self.X_test.BookId))
-        df_actual_rating = pd.DataFrame(np.array(self.y_test))
+    def result_analysis(self, x_test, y_test, exogenous_valid):
+        preds = self.nn_model.predict([x_test.AccountId, x_test.BookId, exogenous_valid])
+        df_id = pd.DataFrame(np.array(x_test.AccountId))
+        df_book_id = pd.DataFrame(np.array(x_test.BookId))
+        df_actual_rating = pd.DataFrame(np.array(y_test))
         df_preds = pd.DataFrame(preds)
-        dfList = [df_id, df_Book_id, df_actual_rating, df_preds]  # List of your dataframes
-        avp = pd.concat(dfList, ignore_index=True, axis=1)
+        df_list = [df_id, df_book_id, df_actual_rating, df_preds]  # List of your dataframes
+        avp = pd.concat(df_list, ignore_index=True, axis=1)
         # new_df = pd.concat([new_df,df_preds],ignore_index=True,axis=1)
         avp.rename(columns={avp.columns[0]: "AccountId"}, inplace=True)
         avp.rename(columns={avp.columns[1]: "BookId"}, inplace=True)
@@ -160,8 +160,22 @@ class DeepModel:
         print("Min overlap in top " + str(top_recos_to_check) + " books " + str(min_overlap))
         print("Average overlap in top " + str(top_recos_to_check) + " books " + str(mean_overlap))
 
-    def test(self):
-        pass
+    def test(self, user_id,num_recommendations):
+        my_test = pd.DataFrame(self.user_rating['BookId'].unique(), columns=['BookId'])
+        user_index_id = self.user_rating[self.user_rating['AccountId_original'] == user_id]['AccountId'].iloc[0]
+        my_test['AccountId'] = user_index_id
+        tmp = self.user_rating[['BookId', 'BookId_original', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']]
+        tmp = tmp.drop_duplicates()
+        my_test = my_test.merge(tmp, on='BookId', how='left')
+        exogenous_test = np.array(my_test[['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']])
+        preds = self.nn_model.predict([my_test.AccountId, my_test.BookId, exogenous_test])
+        print(preds)
+        preds = pd.DataFrame(preds, columns=['Predictions'])
+        result = preds.sort_values('Predictions', ascending=False)
+        result = pd.DataFrame(result.index.values, columns=['BookId'])
+        tmp = self.user_rating[['BookId', 'BookId_original']].drop_duplicates()
+        result = result.merge(tmp, on='BookId', how='left')
+        return pd.DataFrame(result['BookId_original'].values[:num_recommendations],columns=['BookId'])
 
     @staticmethod
     def mix_max_scaler(df, scaling_cols):
@@ -173,12 +187,12 @@ class DeepModel:
         return result
 
     @staticmethod
-    def check_overlap(UserId, top_recos_to_check, avp):
-        samp_cust = avp[avp['AccountId'] == UserId][['AccountId', 'Rate', 'BookId']]
+    def check_overlap(user_id, top_recos_to_check, avp):
+        samp_cust = avp[avp['AccountId'] == user_id][['AccountId', 'Rate', 'BookId']]
         samp_cust.sort_values(by='Rate', ascending=False, inplace=True)
         available_actual_ratings = samp_cust.shape[0]
         rows_to_fetch = min(available_actual_ratings, top_recos_to_check)
-        preds_df_sampcust = avp[avp['AccountId'] == UserId][['AccountId', 'Pred_Rating', 'BookId']]
+        preds_df_sampcust = avp[avp['AccountId'] == user_id][['AccountId', 'Pred_Rating', 'BookId']]
         preds_df_sampcust.sort_values(by='Pred_Rating', ascending=False, inplace=True)
         actual_rating = samp_cust.iloc[0:rows_to_fetch, :]
         pred_rating = preds_df_sampcust.iloc[0:rows_to_fetch, :]
@@ -188,8 +202,8 @@ class DeepModel:
         return pct_overlap
 
     @staticmethod
-    def build_model(dropout, latent_factors, n_books, n_users):
-        n_latent_factors = latent_factors  # hyperparamter to deal with.
+    def build_model(dropout, n_latent_factors, n_books, n_users):
+        # hyperparamter to deal with.
         user_input = Input(shape=(1,), name='user_input', dtype='int64')
         user_embedding = Embedding(n_users, n_latent_factors, name='user_embedding')(user_input)
         user_vec = Flatten(name='FlattenUsers')(user_embedding)
@@ -199,12 +213,12 @@ class DeepModel:
         book_vec = Flatten(name='FlattenBooks')(book_embedding)
         book_vec = Dropout(dropout)(book_vec)
         sim = dot([user_vec, book_vec], name='Similarity-Dot-Product', axes=1)
-        ###Exogenous Features input
-        exog_input = Input(shape=(6,), name='exogenous_input', dtype='float64')
-        exog_embedding = Embedding(6, 20, name='exog_embedding')(exog_input)
+        # Exogenous Features input
+        exog_input = Input(shape=(5,), name='exogenous_input', dtype='float64')
+        exog_embedding = Embedding(5, 20, name='exog_embedding')(exog_input)
         # exog_embedding = Dense(65,activation='relu',name='exog_Dense')(exog_input)
         exog_vec = Flatten(name='FlattenExog')(exog_embedding)
-        ##############
+
         nn_inp = Add(dtype='float64', name='Combine_inputs')([sim, exog_vec])
         nn_inp = Dense(128, activation='relu')(nn_inp)
         nn_inp = Dropout(dropout)(nn_inp)
@@ -212,4 +226,6 @@ class DeepModel:
         nn_inp = BatchNormalization()(nn_inp)
         nn_output = Dense(1, activation='relu')(nn_inp)
         nn_model = Model([user_input, book_input, exog_input], nn_output)
+
+        nn_model.summary()
         return nn_model
