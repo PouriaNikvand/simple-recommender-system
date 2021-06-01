@@ -1,25 +1,16 @@
 import numpy as np
-from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 import pandas as pd
-from pathlib import PurePosixPath
 import matplotlib.pyplot as plt
-import sys
-
-import tensorflow as tf
-import tensorflow.keras.backend as K
-from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Concatenate, Add
 from tensorflow.keras.optimizers import Adam, SGD, Adagrad, Adadelta, RMSprop
-from tensorflow.keras.utils import to_categorical
-from tensorflow.keras.utils import model_to_dot
-from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.layers import Dropout, Flatten, Activation, Input, Embedding
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import dot
 from tensorflow.keras.models import Model
-from df_data import DfData
-from configs import Configs
+
+from managers.df_data import DfData
+from configs.configs import Configs
 
 """ Author: Pouria Nikvand """
 

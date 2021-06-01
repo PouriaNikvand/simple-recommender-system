@@ -1,7 +1,6 @@
-from recommender import Recommender
-from preprocess import Preprocess
-from df_data import DfData
-from deep_model import DeepModel
+from managers.recommender import Recommender
+from managers.preprocess import Preprocess
+from managers.df_data import DfData
 
 """ Author: Pouria Nikvand """
 
