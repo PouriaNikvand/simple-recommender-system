@@ -17,10 +17,19 @@ from deep_model import DeepModel
 def main():
     # read and preprocess for the input data
     my_df_data = DfData()
-    my_deep_model = DeepModel(my_df_data)
+
+    # TODO a deep model added for rate prediciton for a user
+    # this could act like a validator or a new model for the system
+    # with this model we can predict all the rates for each user based on books and user behavior
+    # my_deep_model = DeepModel(my_df_data)
+    # test not written yet
+    # my_deep_model.test()
+
+
     my_preprocessed = Preprocess(rating_df=my_df_data.rating_df, wishlist_df=my_df_data.wishlist_df)
     strategies = Strategies(user_id=354, my_df_data=my_df_data, my_preprocessed=my_preprocessed,
                             num_recommendations=Configs.num_recommendations)
+
     rus = strategies.my_recommender_2()
 
     # TODO handling the list

@@ -36,7 +36,7 @@ class DeepModel:
         book_rating['Rate3C'] = book_rating['Rate3C'].astype(int)
         book_rating['Rate4C'] = book_rating['Rate4C'].astype(int)
         book_rating['Rate5C'] = book_rating['Rate5C'].astype(int)
-        # book_rating['Total_rating_count'] = book_rating['Rate1C'] + book_rating['Rate2C'] +  book_rating['Rate3C'] + book_rating['Rate4C'] + book_rating['Rate5C']
+
         book_rating['Pct_1Star'] = book_rating['Rate1C'] / book_rating['RaCount']
         book_rating['Pct_2Star'] = book_rating['Rate2C'] / book_rating['RaCount']
         book_rating['Pct_3Star'] = book_rating['Rate3C'] / book_rating['RaCount']
@@ -44,11 +44,12 @@ class DeepModel:
         book_rating['Pct_5Star'] = book_rating['Rate5C'] / book_rating['RaCount']
         book_rating.head()
 
-        book_rating_df = book_rating[['BookId','Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']]
+        book_rating_df = book_rating[['BookId', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C']]
         scaling_cols = ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum', 'RaCount']
 
         book_rating_scaled = self.mix_max_scaler(book_rating, scaling_cols)
-        book_rating_df = book_rating_scaled[['BookId','Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum', 'RaCount']]
+        book_rating_df = book_rating_scaled[
+            ['BookId', 'Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum', 'RaCount']]
 
         ##Let's create Book_id that we can use
         book_id_0 = book_rating_df[['BookId']]
@@ -82,47 +83,40 @@ class DeepModel:
         bookid2idx = {o: i for i, o in enumerate(books)}
         user_rating['AccountId'] = user_rating['AccountId'].apply(lambda x: userid2idx[x])
         user_rating['BookId'] = user_rating['BookId'].apply(lambda x: bookid2idx[x])
-        y = user_rating['RaCount']
-        X = user_rating.drop(['RaCount'], axis=1)
-        ####
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        # split = np.random.rand(len(user_rating)) < 0.8
-        # train = user_rating[split]
-        # valid = user_rating[~split]
-        print(X_train.shape, X_test.shape)
+        self.y = user_rating['RaCount']
+        self.X = user_rating.drop(['RaCount'], axis=1)
 
-        exogenous_train = np.array(X_train[
+        self.X_train, self.X_test, self.y_train, self.y_test = train_test_split(self.X, self.y, test_size=0.2,
+                                                                                random_state=42)
+
+        # this part as for production not for experiments
+        # at this part we have done the experiments enough
+        self.X_train, self.y_train = self.X, self.y
+
+        print(self.X_train.shape, self.X_test.shape)
+
+        self.exogenous_train = np.array(self.X_train[
                                        ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum']])
-        exogenous_valid = np.array(X_test[
+        self.exogenous_valid = np.array(self.X_test[
                                        ['Rate1C', 'Rate2C', 'Rate3C', 'Rate4C', 'Rate5C', 'Sum']])
-
-        model = Sequential()
-        embedding_layer = Embedding(input_dim=8, output_dim=4, input_length=2)
-        model.add(embedding_layer)
-        model.compile('adam', 'mse')
-        model.summary()
-
-        input_data = np.array([[1, 2]])
-
-        pred = model.predict(input_data)
-
-        print(input_data.shape)
-        print(pred)
-
-        embedding_layer.get_weights()
 
         n_books = len(user_rating['BookId'].unique())
         n_users = len(user_rating['AccountId'].unique())
 
-        nn_model = self.build_model(0.4, 65, n_books, n_users)
-        nn_model.summary()
+        self.nn_model = self.build_model(0.4, 65, n_books, n_users)
+        self.nn_model.summary()
 
-        nn_model.compile(optimizer=Adam(lr=1e-4), loss='mse')
-        batch_size = 128
-        epochs = 15
-        History = nn_model.fit([X_train.AccountId, X_train.BookId, exogenous_train], y_train, batch_size=batch_size,
-                               epochs=epochs, validation_data=([X_test.AccountId, X_test.BookId, exogenous_valid], y_test),
-                               verbose=1)
+        self.nn_model.compile(optimizer=Adam(lr=1e-4), loss='mse')
+
+        # we always want this batch size better than the others :-D
+        batch_size = 32
+        epochs = 10
+        History = self.nn_model.fit([self.X_train.AccountId, self.X_train.BookId, self.exogenous_train], self.y_train,
+                                    batch_size=batch_size,
+                                    epochs=epochs,
+                                    validation_data=(
+                                    [self.X_test.AccountId, self.X_test.BookId, self.exogenous_valid], self.y_test),
+                                    verbose=1)
 
         plt.plot(History.history['loss'], 'g')
         plt.plot(History.history['val_loss'], 'b')
@@ -133,18 +127,20 @@ class DeepModel:
         plt.grid(True)
         plt.show()
 
-        preds = nn_model.predict([X_test.AccountId, X_test.BookId, exogenous_valid])
-        avp = (preds, y_test)
-        df_id = pd.DataFrame(np.array(X_test.AccountId))
-        df_Book_id = pd.DataFrame(np.array(X_test.BookId))
-        df_actual_rating = pd.DataFrame(np.array(y_test))
+        # self.result_analysis()
+
+    def result_analysis(self):
+        preds = self.nn_model.predict([self.X_test.AccountId, self._test.BookId, self.exogenous_valid])
+        df_id = pd.DataFrame(np.array(self.X_test.AccountId))
+        df_Book_id = pd.DataFrame(np.array(self.X_test.BookId))
+        df_actual_rating = pd.DataFrame(np.array(self.y_test))
         df_preds = pd.DataFrame(preds)
         dfList = [df_id, df_Book_id, df_actual_rating, df_preds]  # List of your dataframes
         avp = pd.concat(dfList, ignore_index=True, axis=1)
         # new_df = pd.concat([new_df,df_preds],ignore_index=True,axis=1)
         avp.rename(columns={avp.columns[0]: "AccountId"}, inplace=True)
         avp.rename(columns={avp.columns[1]: "BookId"}, inplace=True)
-        avp.rename(columns={avp.columns[2]: "Rating_numeric"}, inplace=True)
+        avp.rename(columns={avp.columns[2]: "Rate"}, inplace=True)
         avp.rename(columns={avp.columns[3]: "Pred_Rating"}, inplace=True)
         print(avp)
 
@@ -164,6 +160,9 @@ class DeepModel:
         print("Min overlap in top " + str(top_recos_to_check) + " books " + str(min_overlap))
         print("Average overlap in top " + str(top_recos_to_check) + " books " + str(mean_overlap))
 
+    def test(self):
+        pass
+
     @staticmethod
     def mix_max_scaler(df, scaling_cols):
         result = df.copy()
@@ -175,8 +174,8 @@ class DeepModel:
 
     @staticmethod
     def check_overlap(UserId, top_recos_to_check, avp):
-        samp_cust = avp[avp['AccountId'] == UserId][['AccountId', 'Rating_numeric', 'BookId']]
-        samp_cust.sort_values(by='Rating_numeric', ascending=False, inplace=True)
+        samp_cust = avp[avp['AccountId'] == UserId][['AccountId', 'Rate', 'BookId']]
+        samp_cust.sort_values(by='Rate', ascending=False, inplace=True)
         available_actual_ratings = samp_cust.shape[0]
         rows_to_fetch = min(available_actual_ratings, top_recos_to_check)
         preds_df_sampcust = avp[avp['AccountId'] == UserId][['AccountId', 'Pred_Rating', 'BookId']]

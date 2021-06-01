@@ -16,6 +16,7 @@ class Recommender:
 
     def __init__(self, user_id: int, my_df_data: DfData, my_preprocessed: Preprocess, num_recommendations: int):
         self.user_id = user_id
+        self.my_df_data = my_df_data
         self.num_recommendations = num_recommendations
         self.my_df_data = my_df_data
         self.my_preprocessed = my_preprocessed
@@ -45,28 +46,50 @@ class Recommender:
             return 15
         return 10
 
-    def recommend_using_cosine_similarity(self, rating_matrix):
-        pass
-
-    def recommend_using_knn_users(self, num_recommendations, user_vec_profiles, rating_df, account_id_indexes, nbrs) -> Tuple[
-        DataFrame, bool]:
+    def recommend_using_knn_users(self, num_recommendations, user_vec_profiles, rating_df, account_id_indexes,
+                                  nbrs) -> list:
 
         user_index = account_id_indexes[account_id_indexes['AccountId'] == self.user_id].index.values[0]
         user_vec_profiles = user_vec_profiles.iloc[user_index]
         my_vec = user_vec_profiles.values.reshape(1, -1)
-        nearest_users = [i for i in nbrs.kneighbors(my_vec, n_neighbors=num_recommendations, return_distance=True)]
-        return nearest_users[1:]
+        nearest_users_index = [i for i in
+                               nbrs.kneighbors(my_vec, n_neighbors=num_recommendations, return_distance=True)]
+        nearest_users = account_id_indexes.iloc[nearest_users_index[1][0]]['AccountId']
+        return nearest_users.iloc[1:].values
 
-    def recommend_using_svds(self, num_recommendations, preds, rating_df, account_id_indexes) -> Tuple[DataFrame, bool]:
-        # TODO we had a problem in the original code that has been fixed here / ask later for checking this
-        user_index = account_id_indexes[account_id_indexes['AccountId'] == self.user_id].index.values[0]
-        sorted_user_predictions = preds.iloc[user_index].sort_values(ascending=False)
-        books = pd.DataFrame(rating_df.BookId.unique(), columns=['BookId'])
-        recommendations = (
-            books[~books.isin(self.user_rated_books)].merge(pd.DataFrame(sorted_user_predictions).reset_index(),
-                                                            how='left',
-                                                            left_on='BookId',
-                                                            right_on='BookId').rename(
-                columns={user_index: 'Predictions'}))
-        result = recommendations.sort_values('Predictions', ascending=False).iloc[:num_recommendations, :-1]
+    def recommend_using_svds(self, num_recommendations, preds, rating_df, account_id_indexes, user_id=None) -> Tuple[
+        DataFrame, bool]:
+        if user_id is None:
+            user_id = self.user_id
+            user_wishlist_books = self.user_wishlist_books
+            user_rated_books = self.user_rated_books
+            # TODO we had a problem in the original code that has been fixed here / ask later for checking this
+            user_index = account_id_indexes[account_id_indexes['AccountId'] == user_id].index.values[0]
+            sorted_user_predictions = preds.iloc[user_index].sort_values(ascending=False)
+            books = pd.DataFrame(rating_df.BookId.unique(), columns=['BookId'])
+            recommendations = (
+                books[~books.isin(user_rated_books)].merge(pd.DataFrame(sorted_user_predictions).reset_index(),
+                                                           how='left',
+                                                           left_on='BookId',
+                                                           right_on='BookId').rename(
+                    columns={user_index: 'Predictions'}))
+            result = recommendations.sort_values('Predictions', ascending=False).iloc[:num_recommendations, :-1]
+        else:
+            if not isinstance(user_id, int):
+                users_recoms = pd.DataFrame([])
+                for each_user in user_id:
+                    user_rated_books = self.my_df_data.rating_df[self.my_df_data.rating_df['AccountId'] == each_user]
+                    user_index = account_id_indexes[account_id_indexes['AccountId'] == each_user]
+                    user_index = user_index.index.values[0]
+                    sorted_user_predictions = preds.iloc[user_index].sort_values(ascending=False)
+                    books = pd.DataFrame(rating_df.BookId.unique(), columns=['BookId'])
+                    recommendations = (
+                        books[~books.isin(user_rated_books)].merge(pd.DataFrame(sorted_user_predictions).reset_index(),
+                                                                   how='left',
+                                                                   left_on='BookId',
+                                                                   right_on='BookId').rename(
+                            columns={user_index: 'Predictions'}))
+                    users_recoms = pd.concat([recommendations, users_recoms], axis=0)
+                result = users_recoms.sort_values('Predictions', ascending=False).iloc[:, :-1]
+                result = result.drop_duplicates().iloc[:num_recommendations]
         return result

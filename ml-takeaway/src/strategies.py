@@ -11,7 +11,8 @@ class Strategies(Recommender):
         super().__init__(user_id, my_df_data, my_preprocessed, num_recommendations)
 
     def my_recommender_1(self) -> list:
-        # TODO
+        # using svds preds for prediction with strategy for new users
+
         results = list()
 
         if self.strategy_score < 5:
@@ -22,11 +23,7 @@ class Strategies(Recommender):
             results.append(self.my_df_data.top_count_rated_books)
             results.append(self.my_df_data.top_mean_rated_books)
             results.append(self.my_df_data.top_grouped_rate)
-            # results.append(self.recommend_using_svds(self.num_recommendations,
-            #                                          self.my_preprocessed.wishlist_svds_preds,
-            #                                          self.my_df_data.rating_df,
-            #                                          self.my_preprocessed.wishlist_account_id_indexes
-            #                                          ))
+
         elif self.strategy_score < 15:
             results.append(self.recommend_using_svds(self.num_recommendations,
                                                      self.my_preprocessed.svds_preds,
@@ -43,11 +40,6 @@ class Strategies(Recommender):
                                                      self.my_df_data.rating_df,
                                                      self.my_preprocessed.account_id_indexes))
 
-            # results.append(self.recommend_using_svds(self.num_recommendations,
-            #                                          self.my_preprocessed.wishlist_svds_preds,
-            #                                          self.my_df_data.rating_df,
-            #                                          self.my_preprocessed.wishlist_account_id_indexes
-            #                                          ))
         elif self.strategy_score < 25:
             results.append(self.recommend_using_svds(self.num_recommendations,
                                                      self.my_preprocessed.svds_preds,
@@ -57,7 +49,7 @@ class Strategies(Recommender):
         return results
 
     def my_recommender_2(self) -> list:
-        # TODO
+        # using knn users on svds preds for prediction with svds
         results = list()
 
         if self.strategy_score < 5:
@@ -70,34 +62,49 @@ class Strategies(Recommender):
             results.append(self.my_df_data.top_grouped_rate)
 
         elif self.strategy_score < 15:
-            results.append(self.recommend_using_knn_users(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_svds_preds))
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_svds_preds)
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
 
             results.append(self.my_df_data.top_count_rated_books)
             results.append(self.my_df_data.top_mean_rated_books)
             results.append(self.my_df_data.top_grouped_rate)
 
         elif self.strategy_score < 20:
-            results.append(self.recommend_using_knn_users(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_svds_preds))
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_svds_preds)
+
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
 
         elif self.strategy_score < 25:
-            results.append(self.recommend_using_knn_users(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_svds_preds))
-
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_svds_preds)
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
         return results
 
     def my_recommender_3(self) -> list:
-        # TODO
+        # using knn users on onehot rm matrix preds for prediction with svds
         results = list()
 
         if self.strategy_score < 5:
@@ -110,28 +117,45 @@ class Strategies(Recommender):
             results.append(self.my_df_data.top_grouped_rate)
 
         elif self.strategy_score < 15:
-            results.append(self.recommend_using_knn(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_colab_onhot_filter))
-
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_colab_onhot_filter)
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
             results.append(self.my_df_data.top_count_rated_books)
             results.append(self.my_df_data.top_mean_rated_books)
             results.append(self.my_df_data.top_grouped_rate)
 
         elif self.strategy_score < 20:
-            results.append(self.recommend_using_knn(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_colab_onhot_filter))
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_colab_onhot_filter)
 
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
         elif self.strategy_score < 25:
-            results.append(self.recommend_using_knn(self.num_recommendations,
-                                                    self.my_preprocessed.svds_preds,
-                                                    self.my_df_data.rating_df,
-                                                    self.my_preprocessed.account_id_indexes,
-                                                    self.my_preprocessed.nbrs_colab_onhot_filter))
-
+            similar_users = self.recommend_using_knn_users(self.num_recommendations,
+                                                           self.my_preprocessed.svds_preds,
+                                                           self.my_df_data.rating_df,
+                                                           self.my_preprocessed.account_id_indexes,
+                                                           self.my_preprocessed.nbrs_colab_onhot_filter)
+            results.append(self.recommend_using_svds(self.num_recommendations,
+                                                     self.my_preprocessed.svds_preds,
+                                                     self.my_df_data.rating_df,
+                                                     self.my_preprocessed.account_id_indexes,
+                                                     similar_users))
         return results
+
+    def my_recommender_4(self) -> list:
+        # TODO this part is merged with deep learning
+        pass
